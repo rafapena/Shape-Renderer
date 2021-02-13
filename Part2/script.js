@@ -10,24 +10,43 @@ var displayFlatShaded = true;
 var displayFaces = true;
 var displayWireframe = false;
 
+var shapePositions;
+var shapeIndices;
+
+var loadedShape = false;
+var shapeFirstVertex;
+
 class Edge {
-  constructor(name, year) {
-	this.name = name;
-	this.year = year;
+  constructor(vert_origin, vert_destination) {
+	  this.vert_origin = vert_origin;
+	  this.vert_destination = vert_destination;
   }
-  Vertex *vert_origin, *vert_destination;
-  Face *face_left, *face_right;
-  Edge *edge_left_cw,
-       *edge_left_ccw,
-       *edge_right_cw,
-       *edge_right_ccw;
+  set_face(face_left, face_right) {
+	  this.face_left = face_left;
+	  this.face_right = face_right;
+  }
+  set_edges(edge_left_cw, edge_left_ccw, edge_right_cw, edge_right_ccw) {
+	  this.edge_left_cw = edge_left_cw;
+	  this.edge_left_ccw = edge_left_ccw 
+	  this.edge_right_ccw = edge_right_ccw;
+  }
 }
+
 class Vertex {
-  float x, y, z;
-  Edge *edge;
+  constructor(x, y, z) {
+	  this.x = x;
+	  this.y = y;
+	  this.z = z;
+  }
+  set_edge(edge) {
+	  this.edge = edge;
+  }
 }
+
 class Face {
-  Edge *edge;
+  constructor(edge) {
+	  this.edge = edge;
+  }
 }
 
 
@@ -79,14 +98,83 @@ function updateTranslationYSlider(slideAmount) {
 	cubeTranslationY = parseFloat(slideAmount);
 }
 
-//Function demonstrating how to load a sample file from the internet.
-function loadFileFunction(){
-	var client = new XMLHttpRequest();
-	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/goodhand.obj');
-	client.onreadystatechange = function() {
-		alert(client.responseText);
+function generateLoadedShape(output) {
+	shapePositions = [
+		// Front face
+		-1.0, -1.0,  1.0,
+		 1.0, -1.0,  1.0,
+		 1.0,  1.0,  1.0,
+		-1.0,  1.0,  1.0,
+
+		// Back face
+		-1.0, -1.0, -1.0,
+		-1.0,  1.0, -1.0,
+		 1.0,  1.0, -1.0,
+		 1.0, -1.0, -1.0,
+
+		// Top face
+		-1.0,  1.0, -1.0,
+		-1.0,  1.0,  1.0,
+		 1.0,  1.0,  1.0,
+		 1.0,  1.0, -1.0,
+
+		// Bottom face
+		-1.0, -1.0, -1.0,
+		 1.0, -1.0, -1.0,
+		 1.0, -1.0,  1.0,
+		-1.0, -1.0,  1.0,
+
+		// Right face
+		 1.0, -1.0, -1.0,
+		 1.0,  1.0, -1.0,
+		 1.0,  1.0,  1.0,
+		 1.0, -1.0,  1.0,
+
+		// Left face
+		-1.0, -1.0, -1.0,
+		-1.0, -1.0,  1.0,
+		-1.0,  1.0,  1.0,
+		-1.0,  1.0, -1.0,
+	];
+	shapeIndices = [
+		0,  1,  2,      0,  2,  3,    // front
+		4,  5,  6,      4,  6,  7,    // back
+		8,  9,  10,     8,  10, 11,   // top
+		12, 13, 14,     12, 14, 15,   // bottom
+		16, 17, 18,     16, 18, 19,   // right
+		20, 21, 22,     20, 22, 23,   // left
+	];
+	shapePositions = [];
+	shapeIndices = [];
+	for (var i = 0; i < output.length; i++) {
+		var contents = output[i].split(" ");
+		if (contents[0] === "v") {
+			shapePositions.push(parseFloat(contents[1]));
+			shapePositions.push(parseFloat(contents[2]));
+			shapePositions.push(parseFloat(contents[3]));
+		} else if (contents[0] === "f") {
+			shapeIndices.push(parseInt(contents[1])-1);
+			shapeIndices.push(parseInt(contents[2])-1);
+			shapeIndices.push(parseInt(contents[3])-1);
 		}
+	}
+}
+
+//Function demonstrating how to load a sample file from the internet.
+function loadFileFunction() {
+	var output = "";
+	var client = new XMLHttpRequest();
+	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse.obj');
+	client.onreadystatechange = function() {
+		if (client.readyState == 4 && client.status == 200) {
+			generateLoadedShape(client.responseText.split(/\r?\n/));
+			loadedShape = true;
+			main();
+		}
+	}
 	client.send();
+	//loadedShape = true;
+	//main();
 }
 
 //A simple function to download files.
@@ -103,11 +191,14 @@ function downloadFile(filename, text) {
 //A buttom to download a file with the name provided by the user
 function downloadFileFunction(){
 	var file = document.getElementById("filename").value;
-	downloadFile(file,
-				cubeRotationX + "\n" + cubeRotationY + "\n" + cubeRotationZ + "\n" +
-				cubeZoom + "\n" + cubeTranslationX + "\n" + cubeTranslationY + "\n" +
-				displayFlatShaded + "\n" + displayFaces + "\n" + displayWireframe
-				);
+	fileContent = "# " + (shapePositions.length/3) + " " + (shapeIndices.length/3);
+	for (var i = 0; i < shapePositions.length; i += 3) {
+	  fileContent += "\nv " + shapePositions[i] + " " + shapePositions[i+1] + " " + shapePositions[i+2];
+	}
+	for (var i = 0; i < shapeIndices.length; i += 3) {
+	  fileContent += "\nf " + (shapeIndices[i]+1) + " " + (shapeIndices[i+1]+1) + " " + (shapeIndices[i+2]+1);
+	}
+	downloadFile(file, fileContent);
 }
 
 
@@ -122,6 +213,7 @@ function main() {
     alert('Unable to initialize WebGL. Your browser or machine may not support it.');
     return;
   }
+  if (!loadedShape) return;
   
   // Vertex shader program
   var vsSource;
@@ -201,7 +293,7 @@ function main() {
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
     }
   };
-
+  
   // Call the routine that builds all the objects we'll be drawing.
   const buffers = initBuffers(gl);
 
@@ -224,75 +316,18 @@ function initBuffers(gl) {
 	// Define shape
 	const positionBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-	var positions = [
-		// Front face
-		-1.0, -1.0,  1.0,
-		 1.0, -1.0,  1.0,
-		 1.0,  1.0,  1.0,
-		-1.0,  1.0,  1.0,
-
-		// Back face
-		-1.0, -1.0, -1.0,
-		-1.0,  1.0, -1.0,
-		 1.0,  1.0, -1.0,
-		 1.0, -1.0, -1.0,
-
-		// Top face
-		-1.0,  1.0, -1.0,
-		-1.0,  1.0,  1.0,
-		 1.0,  1.0,  1.0,
-		 1.0,  1.0, -1.0,
-
-		// Bottom face
-		-1.0, -1.0, -1.0,
-		 1.0, -1.0, -1.0,
-		 1.0, -1.0,  1.0,
-		-1.0, -1.0,  1.0,
-
-		// Right face
-		 1.0, -1.0, -1.0,
-		 1.0,  1.0, -1.0,
-		 1.0,  1.0,  1.0,
-		 1.0, -1.0,  1.0,
-
-		// Left face
-		-1.0, -1.0, -1.0,
-		-1.0, -1.0,  1.0,
-		-1.0,  1.0,  1.0,
-		-1.0,  1.0, -1.0,
-	];
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(shapePositions), gl.STATIC_DRAW);
 	
 	// Define colors
-	const faceColors = [
-		[1.0,  1.0,  1.0,  1.0],    // Front face: white
-		[1.0,  0.0,  0.0,  1.0],    // Back face: red
-		[0.0,  1.0,  0.0,  1.0],    // Top face: green
-		[0.0,  0.0,  1.0,  1.0],    // Bottom face: blue
-		[1.0,  1.0,  0.0,  1.0],    // Right face: yellow
-		[1.0,  0.0,  1.0,  1.0],    // Left face: purple
-	];
-	var colors = [];
-	for (var j = 0; j < faceColors.length; ++j) {
-		const c = faceColors[j];
-		colors = colors.concat(c, c, c, c);
-	}
+	color = [1.0,  1.0,  1.0,  1.0];
 	const colorBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
 	
 	// Define indices
 	const indexBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-	const indices = [
-		0,  1,  2,      0,  2,  3,    // front
-		4,  5,  6,      4,  6,  7,    // back
-		8,  9,  10,     8,  10, 11,   // top
-		12, 13, 14,     12, 14, 15,   // bottom
-		16, 17, 18,     16, 18, 19,   // right
-		20, 21, 22,     20, 22, 23,   // left
-	];
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(shapeIndices), gl.STATIC_DRAW);
 	
 	return {
 		position: positionBuffer,

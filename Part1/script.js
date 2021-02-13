@@ -10,6 +10,9 @@ var displayFlatShaded = true;
 var displayFaces = true;
 var displayWireframe = false;
 
+var shapePositions;
+var shapeIndices;
+
 
 function displayFlatShadedMesh() {
 	displayMeshMode(true, true, false);
@@ -62,9 +65,9 @@ function updateTranslationYSlider(slideAmount) {
 //Function demonstrating how to load a sample file from the internet.
 function loadFileFunction(){
 	var client = new XMLHttpRequest();
-	client.open('GET', 'hello_world.txt');
+	client.open('GET', 'https://raw.githubusercontent.com/rafapena/CMPT-464-Assignment1/main/Part1/hello_world.txt');
 	client.onreadystatechange = function() {
-		alert(client.responseText);
+		var output = client.responseText;
 	}
 	client.send();
 }
@@ -83,11 +86,14 @@ function downloadFile(filename, text) {
 //A buttom to download a file with the name provided by the user
 function downloadFileFunction(){
 	var file = document.getElementById("filename").value;
-	downloadFile(file,
-				cubeRotationX + "\n" + cubeRotationY + "\n" + cubeRotationZ + "\n" +
-				cubeZoom + "\n" + cubeTranslationX + "\n" + cubeTranslationY + "\n" +
-				displayFlatShaded + "\n" + displayFaces + "\n" + displayWireframe
-				);
+	fileContent = "# " + (shapePositions.length/3) + " " + (shapeIndices.length/3);
+	for (var i = 0; i < shapePositions.length; i += 3) {
+	  fileContent += "\nv " + shapePositions[i] + " " + shapePositions[i+1] + " " + shapePositions[i+2];
+	}
+	for (var i = 0; i < shapeIndices.length; i += 3) {
+	  fileContent += "\nf " + (shapeIndices[i]+1) + " " + (shapeIndices[i+1]+1) + " " + (shapeIndices[i+2]+1);
+	}
+	downloadFile(file, fileContent);
 }
 
 
@@ -204,7 +210,7 @@ function initBuffers(gl) {
 	// Define shape
 	const positionBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-	var positions = [
+	shapePositions = [
 		// Front face
 		-1.0, -1.0,  1.0,
 		 1.0, -1.0,  1.0,
@@ -241,7 +247,7 @@ function initBuffers(gl) {
 		-1.0,  1.0,  1.0,
 		-1.0,  1.0, -1.0,
 	];
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(shapePositions), gl.STATIC_DRAW);
 	
 	// Define colors
 	const faceColors = [
@@ -264,7 +270,7 @@ function initBuffers(gl) {
 	// Define indices
 	const indexBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-	const indices = [
+	shapeIndices = [
 		0,  1,  2,      0,  2,  3,    // front
 		4,  5,  6,      4,  6,  7,    // back
 		8,  9,  10,     8,  10, 11,   // top
@@ -272,7 +278,7 @@ function initBuffers(gl) {
 		16, 17, 18,     16, 18, 19,   // right
 		20, 21, 22,     20, 22, 23,   // left
 	];
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(shapeIndices), gl.STATIC_DRAW);
 	
 	return {
 		position: positionBuffer,

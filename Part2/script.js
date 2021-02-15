@@ -14,40 +14,7 @@ var shapePositions;
 var shapeIndices;
 
 var loadedShape = false;
-var shapeFirstVertex;
-
-class Edge {
-  constructor(vert_origin, vert_destination) {
-	  this.vert_origin = vert_origin;
-	  this.vert_destination = vert_destination;
-  }
-  set_face(face_left, face_right) {
-	  this.face_left = face_left;
-	  this.face_right = face_right;
-  }
-  set_edges(edge_left_cw, edge_left_ccw, edge_right_cw, edge_right_ccw) {
-	  this.edge_left_cw = edge_left_cw;
-	  this.edge_left_ccw = edge_left_ccw 
-	  this.edge_right_ccw = edge_right_ccw;
-  }
-}
-
-class Vertex {
-  constructor(x, y, z) {
-	  this.x = x;
-	  this.y = y;
-	  this.z = z;
-  }
-  set_edge(edge) {
-	  this.edge = edge;
-  }
-}
-
-class Face {
-  constructor(edge) {
-	  this.edge = edge;
-  }
-}
+var shapeInfo;
 
 
 function displayFlatShadedMesh() {
@@ -99,7 +66,7 @@ function updateTranslationYSlider(slideAmount) {
 }
 
 function generateLoadedShape(output) {
-	shapePositions = [
+	/*shapePositions = [
 		// Front face
 		-1.0, -1.0,  1.0,
 		 1.0, -1.0,  1.0,
@@ -143,10 +110,59 @@ function generateLoadedShape(output) {
 		12, 13, 14,     12, 14, 15,   // bottom
 		16, 17, 18,     16, 18, 19,   // right
 		20, 21, 22,     20, 22, 23,   // left
+	];*/
+	
+	V = [
+		[0.57735, 0.0,  0.0],
+		[-0.288675, 0.5,  0.0],
+		[-0.288675,  -0.5,  0.0],
+		[0.0,  0.0,  0.816497],
 	];
-	shapePositions = [];
-	shapeIndices = [];
-	for (var i = 0; i < output.length; i++) {
+	F = [
+		[0,  1,  3],
+		[1,  2,  3],
+		[0,  3,  2],
+		[0,  2,	 1],
+	];
+	
+	let shapeInfo =  new WingedEdge(V, F);
+	
+	shapeInfo.setEdge(0, 0, 0, 2, 1, 11);
+	shapeInfo.setEdge(1, 1, 0, 0, 2, 5);
+	shapeInfo.setEdge(2, 3, 0, 1, 0, 6);
+	shapeInfo.setEdge(3, 1, 1, 5, 4, 10);
+	shapeInfo.setEdge(4, 2, 1, 3, 5, 7);
+	shapeInfo.setEdge(5, 3, 1, 4, 3, 1);
+	shapeInfo.setEdge(6, 0, 2, 8, 7, 2);
+	shapeInfo.setEdge(7, 3, 2, 6, 8, 4);
+	shapeInfo.setEdge(8, 2, 2, 7, 6, 9);
+	shapeInfo.setEdge(9, 0, 3, 11, 10, 8);
+	shapeInfo.setEdge(10, 2, 3, 9, 11, 3);
+	shapeInfo.setEdge(11, 1, 3, 10, 9, 0);
+	
+	shapeInfo.setFace(0, 0);
+	shapeInfo.setFace(1, 3);//2
+	shapeInfo.setFace(2, 6);//7
+	shapeInfo.setFace(3, 9);
+	
+	shapeInfo.setVertex(0, 0, V[0]);//0
+	shapeInfo.setVertex(1, 1, V[1]);//1
+	shapeInfo.setVertex(2, 3, V[2]);//3
+	shapeInfo.setVertex(3, 2, V[3]);//2
+	
+	shapeInfo.computeFaceNormals();
+	shapeInfo.computeVertexNormals();
+	
+	shapePositions = shapeInfo.addVertices();
+	alert("Length: " + shapePositions.length / 3);
+	shapeIndices = [
+		0,  1,  3,
+		1,  2,  3,
+		0,  3,  2,
+		0,  2,	1,
+	];
+
+	/*for (var i = 0; i < output.length; i++) {
 		var contents = output[i].split(" ");
 		if (contents[0] === "v") {
 			shapePositions.push(parseFloat(contents[1]));
@@ -157,14 +173,14 @@ function generateLoadedShape(output) {
 			shapeIndices.push(parseInt(contents[2])-1);
 			shapeIndices.push(parseInt(contents[3])-1);
 		}
-	}
+	}*/
 }
 
 //Function demonstrating how to load a sample file from the internet.
 function loadFileFunction() {
 	var output = "";
 	var client = new XMLHttpRequest();
-	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse.obj');
+	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/goodhand.obj');
 	client.onreadystatechange = function() {
 		if (client.readyState == 4 && client.status == 200) {
 			generateLoadedShape(client.responseText.split(/\r?\n/));
@@ -397,7 +413,7 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
   //gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix);
 
   {
-    const vertexCount = 36;
+    const vertexCount = shapePositions.length;
     const type = gl.UNSIGNED_SHORT;
     const offset = 0;
 	

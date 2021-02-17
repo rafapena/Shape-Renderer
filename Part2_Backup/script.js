@@ -134,7 +134,7 @@ function generateLoadedShape(output) {
 function loadFileFunction() {
 	var output = "";
 	var client = new XMLHttpRequest();
-	var token = 'AEY6SZ723GPZRVC5ZQYIGFDAFS7OK';
+	var token = 'AEY6SZ2YCD6BMCGBN7KEOBDAFQ62G';
 	//client.open('GET', 'https://raw.githubusercontent.com/rafapena/CMPT-464-Assignment1/main/Part2/polyhedron.obj?token=' + token);
 	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse.obj');
 	client.onreadystatechange = function() {
@@ -191,13 +191,13 @@ function main() {
   var vsSource;
   if (displayFlatShaded) {
 	vsSource = `
-		attribute vec4 aVertexPosition, aVertexNormal;
-		uniform mat4 uProjectionMatrix, uModelViewMatrix, uNormalMatrix;
+		attribute vec4 aVertexPosition;
 		attribute vec4 aVertexColor;
+		uniform mat4 uModelViewMatrix;
+		uniform mat4 uProjectionMatrix;
 
 		varying lowp vec4 vColor;
 		void main(void) {
-		  gl_Position = uNormalMatrix * aVertexNormal;	// Include these variables to prevent buffer issues
 		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
 		  vColor = aVertexColor;
 		}
@@ -258,8 +258,8 @@ function main() {
     program: shaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-	  vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
       vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+	  vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),

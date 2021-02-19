@@ -23,7 +23,7 @@ var shapeInfo;
 
 var diffuse = [1.0, 1.0, 1.0, 1.0];		// General shape color
 var frameColor = [1.0, 0.0, 0.0, 1.0];	// Wireframe color
-var objFilename = 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/walking_monster.obj';
+var objFilename = 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse_s.obj';
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

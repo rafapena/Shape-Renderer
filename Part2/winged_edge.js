@@ -98,6 +98,8 @@ class WingedEdge {
 	  this.E = [];
 	  this.V = [];
 	  this.F = [];
+	  this.minVertexVal = Infinity;
+	  this.maxVertexVal = -Infinity;
 	  for (var i = 0; i < f * 3; i++) {
 		  this.E.push(new Edge(i));
 	  }
@@ -119,6 +121,8 @@ class WingedEdge {
 	  this.V[i].x = coords[0];
 	  this.V[i].y = coords[1];
 	  this.V[i].z = coords[2];
+	  this.minVertexVal = Math.min(coords[0], coords[1], coords[2], this.minVertexVal);
+	  this.maxVertexVal = Math.max(coords[0], coords[1], coords[2], this.maxVertexVal);
   }
   
   computeVertexNormals() {
@@ -130,6 +134,15 @@ class WingedEdge {
   computeFaceNormals() {
 	  for (var i = 0; i < this.F.length; i++) {
 		  this.F[i].computeNormal();
+	  }
+  }
+  
+  normalizeVertices() {
+	  var range = this.maxVertexVal - this.minVertexVal;
+	  for (var i = 0; i < this.V.length; i++) {
+		  this.V[i].x = ((this.V[i].x - this.minVertexVal) / range - 0.5) * 2;
+		  this.V[i].y = ((this.V[i].y - this.minVertexVal) / range - 0.5) * 2;
+		  this.V[i].z = ((this.V[i].z - this.minVertexVal) / range - 0.5) * 2;
 	  }
   }
 }

@@ -18,61 +18,12 @@ var objPositionNormals;
 var objFaceIndices;
 var objFaceIndicesWireframe;
 
-// Flat shading
-var objPositions0;			// Duplicate vertices
-var objPositionNormals0;	// Face normals for 3 groups of vertices in objPositions0
-var objFaceIndices0;		// Keeps track of indices from objPositions0
-
 var loadedShape = false;
 var shapeInfo;
 
-var test0 = "# 24 12\n" +
-"v -1 -1 1\n" +
-"v 1 -1 1\n" +
-"v 1 1 1\n" +
-"v -1 1 1\n" +
-"v -1 -1 -1\n" +
-"v -1 1 -1\n" +
-"v 1 1 -1\n" +
-"v 1 -1 -1\n" +
-"v -1 1 -1\n" +
-"v -1 1 1\n" +
-"v 1 1 1\n" +
-"v 1 1 -1\n" +
-"v -1 -1 -1\n" +
-"v 1 -1 -1\n" +
-"v 1 -1 1\n" +
-"v -1 -1 1\n" +
-"v 1 -1 -1\n" +
-"v 1 1 -1\n" +
-"v 1 1 1\n" +
-"v 1 -1 1\n" +
-"v -1 -1 -1\n" +
-"v -1 -1 1\n" +
-"v -1 1 1\n" +
-"v -1 1 -1\n" +
-"f 1 2 3\n" +
-"f 1 3 4\n" +
-"f 5 6 7\n" +
-"f 5 7 8\n" +
-"f 9 10 11\n" +
-"f 9 11 12\n" +
-"f 13 14 15\n" +
-"f 13 15 16\n" +
-"f 17 18 19\n" +
-"f 17 19 20\n" +
-"f 21 22 23\n" +
-"f 21 23 24";
-
-var test1 = "# 4 4\n" +
-"v 0.57735 0 0\n" +
-"v -0.288675 0.5 0\n" +
-"v -0.288675 -0.5 0\n" +
-"v 0 0 0.816497\n" +
-"f 1 2 4\n" +
-"f 2 3 4\n" +
-"f 1 4 3\n" +
-"f 1 3 2";
+var diffuse = [1.0, 1.0, 1.0, 1.0];		// General shape color
+var frameColor = [1.0, 0.0, 0.0, 1.0];	// Wireframe color
+var objFilename = 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/walking_monster.obj';
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,10 +82,7 @@ function updateTranslationYSlider(slideAmount) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 function generateLoadedShape(output) {
-	output = test0.split('\n');
-	//output = test1.split('\n');
-	//output = output.split('\n');
-	
+	output = output.split('\n');
 	var firstLine = output[0].split(" ");
 	var v = parseInt(firstLine[1]);
 	var f = parseInt(firstLine[2]);
@@ -162,6 +110,7 @@ function generateLoadedShape(output) {
 			ei += 3;
 		}
 	}
+	shapeInfo.normalizeVertices();
 	shapeInfo.computeFaceNormals();
 	shapeInfo.computeVertexNormals();
 	
@@ -176,15 +125,7 @@ function generateLoadedShape(output) {
 	for (var i = 0; i < shapeInfo.F.length; i++) {
 		var f = shapeInfo.F[i];
 		for (var j = 0; j < f.edges.length; j++) {
-			var v = f.edges[j].srcVertex;
-			objFaceIndices.push(v.index);
-			objFaceIndices0.push(iter++);
-			objPositions0.push(v.x);
-			objPositions0.push(v.y);
-			objPositions0.push(v.z);
-			objPositionNormals0.push(f.normX);
-			objPositionNormals0.push(f.normY);
-			objPositionNormals0.push(f.normZ);
+			objFaceIndices.push(f.edges[j].srcVertex.index);
 		}
 	}
 	var v0 = shapeInfo.V[0];
@@ -212,7 +153,7 @@ function generateLoadedShape(output) {
 function loadFileFunction() {
 	var output = "";
 	var client = new XMLHttpRequest();
-	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/goodhand.obj');
+	client.open('GET', objFilename);
 	client.onreadystatechange = function() {
 		if (client.readyState == 4 && client.status == 200) {
 			generateLoadedShape(client.responseText);
@@ -236,6 +177,10 @@ function downloadFile(filename, text) {
 
 //A buttom to download a file with the name provided by the user
 function downloadFileFunction(){
+	if (!loadedShape) {
+		alert("Could not save shape: A file must be loaded first");
+		return;
+	}
 	var file = document.getElementById("filename").value;
 	fileContent = "# " + (objPositions.length/3) + " " + (objFaceIndices.length/3);
 	for (var i = 0; i < objPositions.length; i += 3) {
@@ -283,8 +228,57 @@ function main() {
 		void main(void) {
 		  gl_FragColor = vColor;
 		}
-	  `
-  } else {
+	  `;
+  }
+  
+  else if (displayMode == FLAT_SHADED) {
+	  vsSource = `#version 300 es
+		in vec4 aVertexPosition, aVertexNormal;
+		uniform mat4 uProjectionMatrix, uModelViewMatrix, uNormalMatrix;
+		
+		float Ka = 0.5;
+		float Kd = 1.0;
+		float Ks = 1.0;
+		float shininess = 128.0;
+		
+		flat out vec4 vColor;	//color sent to fragment shader
+		vec3 ambientColor = vec3(0.1, 0.1, 0.2);
+		in vec3 aVertexColor;
+		vec3 specularColor = vec3(1.0, 1.0, 1.0);
+		vec3 lightPos = vec3(0, 0, 0.5);
+		
+		void main(){
+			vec3 vertPos = vec3(aVertexPosition) / aVertexPosition[3];
+			gl_Position = aVertexNormal;
+			gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+			
+			vec3 normalInterp = vec3(uNormalMatrix * aVertexNormal);
+			vec3 N = normalize(normalInterp);
+			vec3 L = normalize(lightPos - vertPos);
+			float lambertian = max(dot(N, L), 0.0); 
+
+			float specular = 0.0;
+			if (lambertian > 0.0) {
+				vec3 R = reflect(-L, N);
+				vec3 V = normalize(-vertPos);
+				float specAngle = max(dot(R, V), 0.0);
+				specular = pow(specAngle, shininess);
+			}
+			
+			vColor = vec4(Ka*ambientColor + Kd*lambertian*aVertexColor + Ks*specular*specularColor, 1);
+		}
+	  `;
+	  fsSource = `#version 300 es
+		precision mediump float;
+		flat in vec4 vColor;
+		out vec4 fragColor;
+		void main(){
+			fragColor = vColor;
+		}
+	  `;
+  }
+  
+  else {
 	  vsSource = `
 		attribute vec4 aVertexPosition, aVertexNormal;
 		uniform mat4 uProjectionMatrix, uModelViewMatrix, uNormalMatrix;
@@ -305,7 +299,7 @@ function main() {
 		  vertPos = vec3(aVertexPosition) / aVertexPosition[3];
 		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
 		  
-		  normalInterp = vec3(uNormalMatrix * aVertexNormal);
+		  normalInterp = vec3(uNormalMatrix * aVertexNormal);	//vec3(uModelViewMatrix * aVertexPosition);
 		  vec3 N = normalize(normalInterp);
 		  vec3 L = normalize(lightPos - vertPos);
 		  float lambertian = max(dot(N, L), 0.0);
@@ -364,31 +358,19 @@ function main() {
 
 
 function initBuffers(gl) {
-  var arrP, arrN, arrF;
-  if (displayMode == FLAT_SHADED) {
-	  arrP = objPositions0;
-	  arrN = objPositionNormals0;
-	  arrF = objFaceIndices0;
-  } else {
-	  arrP = objPositions;
-	  arrN = objPositionNormals;
-	  arrF = objFaceIndices;
-  }
-	
   // Define shape
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arrP), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(objPositions), gl.STATIC_DRAW);
 
   // Define normals
   const normalBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arrN), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(objPositionNormals), gl.STATIC_DRAW);
 	
   // Define colors
-  var diffuse = [1.0, 1.0, 1.0, 1.0];
   var colors = [];
-  for (var i = 0; i < arrF.length; i += 3) {
+  for (var i = 0; i < objFaceIndices.length; i += 3) {
 	  colors = colors.concat(diffuse, diffuse, diffuse);	// Color for each vertex
   }
   const colorBuffer = gl.createBuffer();
@@ -396,7 +378,6 @@ function initBuffers(gl) {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
   
   // Define color wireframe
-  var frameColor = [1.0, 0.0, 0.0, 1.0];
   var colorsWireframe = [];
   for (var i = 0; i < objFaceIndicesWireframe.length; i += 3) {
 	  colorsWireframe = colorsWireframe.concat(frameColor, frameColor, frameColor);		// Color for each vertex
@@ -408,7 +389,7 @@ function initBuffers(gl) {
   // Define indices
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(arrF), gl.STATIC_DRAW);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(objFaceIndices), gl.STATIC_DRAW);
   
   // Define wireframe indices
   const indexWireframeBuffer = gl.createBuffer();
@@ -504,8 +485,7 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
 	  gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0);
 	  gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
 	  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
-	  var len = (displayMode == FLAT_SHADED) ? objFaceIndices0.length : objFaceIndices.length;
-	  gl.drawElements(gl.TRIANGLES, len, type, offset);
+	  gl.drawElements(gl.TRIANGLES, objFaceIndices.length, type, offset);
   }
 }
 

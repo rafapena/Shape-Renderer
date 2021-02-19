@@ -1,30 +1,44 @@
 
-var cubeRotationX = 0.0;
-var cubeRotationY = 0.0;
-var cubeRotationZ = 0.0;
-var cubeZoom = -4.0;
-var cubeTranslationX = 0.0;
-var cubeTranslationY = 0.0;
+// UI starting values
+var objRotationX = document.getElementById("rotationXSliderAmount").value;
+var objRotationY = document.getElementById("rotationYSliderAmount").value;
+var objRotationZ = document.getElementById("rotationZSliderAmount").value;
+var objZoom = document.getElementById("zoomSliderAmount").value;
+var objTranslationX = document.getElementById("transitionXSliderAmount").value;
+var objTranslationY = document.getElementById("transitionYSliderAmount").value;
 
+// Display modes
 const FLAT_SHADED = 0;
 const SMOOTHLY_SHADED = 1;
 const WIREFRAME = 2;
 const SHADED_WITH_WIREFRAME = 3;
 var displayMode = FLAT_SHADED;
 
-// Smooth shading and/or wireframes
+// Faces and vertices
 var objPositions;
 var objPositionNormals;
 var objFaceIndices;
 var objFaceIndicesWireframe;
-
 var loadedShape = false;
 var shapeInfo;
 
-var diffuse = [1.0, 1.0, 1.0, 1.0];		// General shape color
-var frameColor = [1.0, 0.0, 0.0, 1.0];	// Wireframe color
-var objFilename = 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse_s.obj';
-//var objFilename = 'https://raw.githubusercontent.com/rafapena/CMPT-464-Assignment1/main/App/objFiles/horse_s_normalized.obj?token=AEY6SZ2SASHOBC6SWORZ3TTAF5IJM';
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// -- EDITABLE REGION --
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Shader settings
+const ambientCoefficient = 0.5;
+const diffuseCoefficient = 1.0;
+const specularCoefficient = 1.0;
+const shininess = 128.0;
+const ambientColor = [0.1, 0.1, 0.3];
+const diffuseColor = [0.9, 0.9, 0.5, 1.0];
+const specularColor = [1.0, 1.0, 1.0];
+const lightPosition = [0.0, 0.0, 0.5];
+
+// Wireframe settings
+const frameColor = [0.8, 0.0, 0.0, 1.0];
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,49 +46,47 @@ var objFilename = 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse_
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 function displayFlatShadedMesh() {
-	updateDisplay(FLAT_SHADED);
+	displayMode = FLAT_SHADED;
+	main();
 }
 
 function displaySmoothlyShadedMesh() {
-	updateDisplay(SMOOTHLY_SHADED);
+	displayMode = SMOOTHLY_SHADED;
+	main();
 }
 
 function displayWireframeMesh() {
-	updateDisplay(WIREFRAME);
+	displayMode = WIREFRAME;
+	main();
 }
 
 function displayShadedWithMeshEdges() {
-	updateDisplay(SHADED_WITH_WIREFRAME);
-}
-
-function updateDisplay(mode) {
-	if (!loadedShape) return;
-	displayMode = mode;
+	displayMode = SHADED_WITH_WIREFRAME;
 	main();
 }
 
 function updateRotationXSlider(slideAmount) {
-	cubeRotationX = parseFloat(slideAmount);
+	objRotationX = parseFloat(slideAmount);
 }
 
 function updateRotationYSlider(slideAmount) {
-	cubeRotationY = parseFloat(slideAmount);
+	objRotationY = parseFloat(slideAmount);
 }
 
 function updateRotationZSlider(slideAmount) {
-	cubeRotationZ = parseFloat(slideAmount);
+	objRotationZ = parseFloat(slideAmount);
 }
 
 function updateZoomSlider(slideAmount) {
-	cubeZoom = parseFloat(slideAmount);
+	objZoom = parseFloat(slideAmount);
 }
 
 function updateTranslationXSlider(slideAmount) {
-	cubeTranslationX = -parseFloat(slideAmount);
+	objTranslationX = -parseFloat(slideAmount);
 }
 
 function updateTranslationYSlider(slideAmount) {
-	cubeTranslationY = parseFloat(slideAmount);
+	objTranslationY = parseFloat(slideAmount);
 }
 
 
@@ -152,17 +164,22 @@ function generateLoadedShape(output) {
 
 //Function demonstrating how to load a sample file from the internet.
 function loadFileFunction() {
-	var output = "";
-	var client = new XMLHttpRequest();
-	client.open('GET', objFilename);
-	client.onreadystatechange = function() {
-		if (client.readyState == 4 && client.status == 200) {
-			generateLoadedShape(client.responseText);
-			loadedShape = true;
-			main();
+	try {
+		var client = new XMLHttpRequest();
+		client.open('GET', document.getElementById("filenameLoad").value);
+		client.onreadystatechange = function() {
+			if (client.readyState == 4) {
+				if (client.status == 200) {
+					generateLoadedShape(client.responseText);
+					loadedShape = true;
+					main();
+				} else {
+					alert("Could not load file\nView the console log for more details\n\n" + client.responseText);
+				}
+			}
 		}
-	}
-	client.send();
+		client.send();
+	} catch(err) {}
 }
 
 //A simple function to download files.
@@ -176,13 +193,12 @@ function downloadFile(filename, text) {
 	document.body.removeChild(element);
 }
 
-//A buttom to download a file with the name provided by the user
+//A button to download a file with the name provided by the user
 function downloadFileFunction(){
 	if (!loadedShape) {
 		alert("Could not save shape: A file must be loaded first");
 		return;
 	}
-	var file = document.getElementById("filename").value;
 	fileContent = "# " + (objPositions.length/3) + " " + (objFaceIndices.length/3);
 	for (var i = 0; i < objPositions.length; i += 3) {
 	  fileContent += "\nv " + objPositions[i] + " " + objPositions[i+1] + " " + objPositions[i+2];
@@ -190,7 +206,7 @@ function downloadFileFunction(){
 	for (var i = 0; i < objFaceIndices.length; i += 3) {
 	  fileContent += "\nf " + (objFaceIndices[i]+1) + " " + (objFaceIndices[i+1]+1) + " " + (objFaceIndices[i+2]+1);
 	}
-	downloadFile(file, fileContent);
+	downloadFile(document.getElementById("filenameSave").value, fileContent);
 }
 
 
@@ -213,21 +229,22 @@ function main() {
   var fsSource;
   
   if (displayMode == WIREFRAME) {
-	  vsSource = `
-		attribute vec4 aVertexPosition, aVertexNormal;
-		uniform mat4 uProjectionMatrix, uModelViewMatrix, uNormalMatrix;
-		attribute vec4 aVertexColor;
-		varying lowp vec4 vColor;
+	  vsSource = `#version 300 es
+		in vec4 aVertexPosition;
+		uniform mat4 uProjectionMatrix, uModelViewMatrix;
+		in vec3 aVertexColor;
+		flat out vec4 vColor;
 		void main(void) {
-		  gl_Position = uNormalMatrix * aVertexNormal;	// Include these variables to prevent buffer issues
 		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-		  vColor = aVertexColor;
+		  vColor = vec4(aVertexColor, 1);
 		}
 	  `;
-	  fsSource = `
-		varying lowp vec4 vColor;
-		void main(void) {
-		  gl_FragColor = vColor;
+	  fsSource = `#version 300 es
+		precision mediump float;
+		flat in vec4 vColor;
+		out vec4 fragColor;
+		void main(){
+			fragColor = vColor;
 		}
 	  `;
   }
@@ -237,36 +254,28 @@ function main() {
 		in vec4 aVertexPosition, aVertexNormal;
 		uniform mat4 uProjectionMatrix, uModelViewMatrix, uNormalMatrix;
 		
-		float Ka = 0.5;
-		float Kd = 1.0;
-		float Ks = 1.0;
-		float shininess = 128.0;
-		
-		flat out vec4 vColor;	//color sent to fragment shader
-		vec3 ambientColor = vec3(0.1, 0.1, 0.2);
+		uniform float Ka, Kd, Ks, sh;
 		in vec3 aVertexColor;
-		vec3 specularColor = vec3(1.0, 1.0, 1.0);
-		vec3 lightPos = vec3(0, 0, 0.5);
+		uniform vec3 uAmbientColor, uSpecularColor, uLightPosition;
+		flat out vec4 vColor;
 		
-		void main(){
-			vec3 vertPos = vec3(aVertexPosition) / aVertexPosition[3];
-			gl_Position = aVertexNormal;
-			gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-			
-			vec3 normalInterp = vec3(uNormalMatrix * aVertexNormal);
-			vec3 N = normalize(normalInterp);
-			vec3 L = normalize(lightPos - vertPos);
-			float lambertian = max(dot(N, L), 0.0); 
-
-			float specular = 0.0;
-			if (lambertian > 0.0) {
-				vec3 R = reflect(-L, N);
-				vec3 V = normalize(-vertPos);
-				float specAngle = max(dot(R, V), 0.0);
-				specular = pow(specAngle, shininess);
-			}
-			
-			vColor = vec4(Ka*ambientColor + Kd*lambertian*aVertexColor + Ks*specular*specularColor, 1);
+		void main(void) {
+		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+		  
+		  vec3 vertPos = vec3(aVertexPosition) / aVertexPosition[3];
+		  vec3 normalInterp = vec3(uNormalMatrix * aVertexNormal);
+		  vec3 N = normalize(normalInterp);
+		  vec3 L = normalize(uLightPosition - vertPos);
+		  float lambertian = max(dot(N, L), 0.0);
+		  
+		  float specular = 0.0;
+		  if (lambertian > 0.0) {
+			vec3 R = reflect(-L, N);
+			vec3 V = normalize(-vertPos);
+			float specAngle = max(dot(R, V), 0.0);
+			specular = pow(specAngle, sh);
+		  }
+		  vColor = vec4(Ka*uAmbientColor + Kd*lambertian*aVertexColor + Ks*specular*uSpecularColor, 1);
 		}
 	  `;
 	  fsSource = `#version 300 es
@@ -283,26 +292,19 @@ function main() {
 	  vsSource = `
 		attribute vec4 aVertexPosition, aVertexNormal;
 		uniform mat4 uProjectionMatrix, uModelViewMatrix, uNormalMatrix;
-		varying vec3 normalInterp, vertPos;
 		
-		float Ka = 0.5;
-		float Kd = 1.0;
-		float Ks = 1.0;
-		float shininess = 128.0;
-		
-		varying lowp vec4 vColor;
-		vec3 ambientColor = vec3(0.1, 0.1, 0.2);
+		uniform float Ka, Kd, Ks, sh;
 		attribute vec3 aVertexColor;
-		vec3 specularColor = vec3(1.0, 1.0, 1.0);
-		vec3 lightPos = vec3(0, 0, 0.5);
+		uniform vec3 uAmbientColor, uSpecularColor, uLightPosition;
+		varying lowp vec4 vColor;
 		
 		void main(void) {
-		  vertPos = vec3(aVertexPosition) / aVertexPosition[3];
 		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
 		  
-		  normalInterp = vec3(uNormalMatrix * aVertexNormal);	//vec3(uModelViewMatrix * aVertexPosition);
+		  vec3 vertPos = vec3(aVertexPosition) / aVertexPosition[3];
+		  vec3 normalInterp = vec3(uNormalMatrix * aVertexNormal);
 		  vec3 N = normalize(normalInterp);
-		  vec3 L = normalize(lightPos - vertPos);
+		  vec3 L = normalize(uLightPosition - vertPos);
 		  float lambertian = max(dot(N, L), 0.0);
 		  
 		  float specular = 0.0;
@@ -310,9 +312,9 @@ function main() {
 			vec3 R = reflect(-L, N);
 			vec3 V = normalize(-vertPos);
 			float specAngle = max(dot(R, V), 0.0);
-			specular = pow(specAngle, shininess);
+			specular = pow(specAngle, sh);
 		  }
-		  vColor = vec4(Ka*ambientColor + Kd*lambertian*aVertexColor + Ks*specular*specularColor, 1);
+		  vColor = vec4(Ka*uAmbientColor + Kd*lambertian*aVertexColor + Ks*specular*uSpecularColor, 1);
 		}
 	  `;
 	  fsSource = `
@@ -339,6 +341,13 @@ function main() {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
 	  normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
+	  Ka: gl.getUniformLocation(shaderProgram, 'Ka'),
+	  Kd: gl.getUniformLocation(shaderProgram, 'Kd'),
+	  Ks: gl.getUniformLocation(shaderProgram, 'Ks'),
+	  shininess: gl.getUniformLocation(shaderProgram, 'sh'),
+	  ambientColor: gl.getUniformLocation(shaderProgram, 'uAmbientColor'),
+	  specularColor: gl.getUniformLocation(shaderProgram, 'uSpecularColor'),
+	  lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
     }
   };
   
@@ -372,7 +381,7 @@ function initBuffers(gl) {
   // Define colors
   var colors = [];
   for (var i = 0; i < objFaceIndices.length; i += 3) {
-	  colors = colors.concat(diffuse, diffuse, diffuse);	// Color for each vertex
+	  colors = colors.concat(diffuseColor, diffuseColor, diffuseColor);		// Color for each vertex
   }
   const colorBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
@@ -381,7 +390,7 @@ function initBuffers(gl) {
   // Define color wireframe
   var colorsWireframe = [];
   for (var i = 0; i < objFaceIndicesWireframe.length; i += 3) {
-	  colorsWireframe = colorsWireframe.concat(frameColor, frameColor, frameColor);		// Color for each vertex
+	  colorsWireframe = colorsWireframe.concat(frameColor, frameColor, frameColor);		// Color for each wireframe vertex
   }
   const colorWireframeBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, colorWireframeBuffer);
@@ -426,10 +435,10 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
   // Model View Matrix: Set the drawing position to the "identity" point, which is the center of the scene.
   const modelViewMatrix = mat4.create();
   const deg2rad = Math.PI / 180.0;
-  mat4.translate(modelViewMatrix, modelViewMatrix, [-cubeTranslationX, cubeTranslationY, cubeZoom]);
-  mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotationX * deg2rad, [1, 0, 0]);
-  mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotationY * deg2rad, [0, 1, 0]);
-  mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotationZ * deg2rad, [0, 0, 1]);
+  mat4.translate(modelViewMatrix, modelViewMatrix, [-objTranslationX, objTranslationY, objZoom]);
+  mat4.rotate(modelViewMatrix, modelViewMatrix, objRotationX * deg2rad, [1, 0, 0]);
+  mat4.rotate(modelViewMatrix, modelViewMatrix, objRotationY * deg2rad, [0, 1, 0]);
+  mat4.rotate(modelViewMatrix, modelViewMatrix, objRotationZ * deg2rad, [0, 0, 1]);
 
   // Normal Matrix
   var mtx = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
@@ -468,6 +477,13 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix);
   gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix);
+  gl.uniform1f(programInfo.uniformLocations.Ka, ambientCoefficient);
+  gl.uniform1f(programInfo.uniformLocations.Kd, diffuseCoefficient);
+  gl.uniform1f(programInfo.uniformLocations.Ks, specularCoefficient);
+  gl.uniform1f(programInfo.uniformLocations.shininess, shininess);
+  gl.uniform3fv(programInfo.uniformLocations.ambientColor, ambientColor);
+  gl.uniform3fv(programInfo.uniformLocations.specularColor, specularColor);
+  gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
 
   // Settings before drawing the triangles and lines
   const type = gl.UNSIGNED_SHORT;

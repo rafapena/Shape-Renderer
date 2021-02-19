@@ -7,13 +7,13 @@ class Edge {
 	  this.srcVertex = src;
 	  this.destVertex = dest;
 	  this.srcVertex.edges.push(this);
-	  /*for (var i = 0; i < dest.edges.length; i++) {
+	  for (var i = 0; i < dest.edges.length; i++) {
 		  if (dest.edges[i].destVertex.index == src.index && this.oppEdge == null) {
 			  this.oppEdge = dest.edges[i];
 			  dest.edges[i].oppEdge = this;
 			  break;
 		  }
-	  }*/
+	  }
   }
   setFace(left) {
 	  this.face = left;

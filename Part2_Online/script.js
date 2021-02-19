@@ -1,7 +1,7 @@
 var meshRotationX = 0.0;
 var meshRotationY = 0.0;
 var meshRotationZ = 0.0;
-var meshZoom = -6.0;
+var meshZoom = 0.0;
 var meshTranslationX = 0.0;
 var meshTranslationY = 0.0;
 
@@ -133,8 +133,6 @@ function generateLoadedShape(output) {
 function loadFileFunction() {
 	var output = "";
 	var client = new XMLHttpRequest();
-	var token = 'AEY6SZ2YCD6BMCGBN7KEOBDAFQ62G';
-	//client.open('GET', 'https://raw.githubusercontent.com/rafapena/CMPT-464-Assignment1/main/Part2/polyhedron.obj?token=' + token);
 	client.open('GET', 'https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/horse.obj');
 	client.onreadystatechange = function() {
 		if (client.readyState == 4 && client.status == 200) {
@@ -354,7 +352,7 @@ async function main() {
   // compiles and links the shaders, looks up attribute and uniform locations
   const meshProgramInfo = webglUtils.createProgramInfo(gl, [vs, fs]);
 
-  const response = await fetch('https://raw.githubusercontent.com/rafapena/CMPT-464-Assignment1/main/Part2/polyhedron.obj?token=AEY6SZ5FIHVFHP7JXZVLVMDAFTCQE');//('https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/goodhand.obj');
+  const response = await fetch('https://www.cs.sfu.ca/~haoz/teaching/cmpt464/assign/a1/goodhand.obj');
   const text = await response.text();
   const obj = parseOBJ(text);
 
@@ -450,7 +448,7 @@ async function main() {
     let u_world = m4.xRotation(degToRad(meshRotationX));
 	//u_world = m4.yRotation(degToRad(meshRotationY));
 	//u_world = m4.zRotation(degToRad(meshRotationZ));
-    //u_world = m4.translate(u_world, ...objOffset);
+    u_world = m4.translate(u_world, ...objOffset);
 
     for (const {bufferInfo, material} of parts) {
 	  // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer

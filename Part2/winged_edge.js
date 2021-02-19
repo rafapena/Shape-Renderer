@@ -7,13 +7,13 @@ class Edge {
 	  this.srcVertex = src;
 	  this.destVertex = dest;
 	  this.srcVertex.edges.push(this);
-	  for (var i = 0; i < dest.edges.length; i++) {
+	  /*for (var i = 0; i < dest.edges.length; i++) {
 		  if (dest.edges[i].destVertex.index == src.index && this.oppEdge == null) {
 			  this.oppEdge = dest.edges[i];
 			  dest.edges[i].oppEdge = this;
 			  break;
 		  }
-	  }
+	  }*/
   }
   setFace(left) {
 	  this.face = left;
@@ -98,7 +98,7 @@ class WingedEdge {
 	  this.E = [];
 	  this.V = [];
 	  this.F = [];
-	  for (var i = 0; i < f * 3; i++) {		//v + f + 4
+	  for (var i = 0; i < f * 3; i++) {
 		  this.E.push(new Edge(i));
 	  }
 	  for (var i = 0; i < v; i++) {
@@ -110,11 +110,7 @@ class WingedEdge {
   }
   
   setEdge(i, vi1, vi2, fi, pei, nei) {
-	  try {
-		this.E[i].setVertices(this.V[vi1], this.V[vi2]);
-	  } catch (err) {
-		  alert(this.E.length+" "+i);
-	  }
+	  this.E[i].setVertices(this.V[vi1], this.V[vi2]);
 	  this.E[i].setFace(this.F[fi]);
 	  this.E[i].setCCWEdges(this.E[pei], this.E[nei]);
   }

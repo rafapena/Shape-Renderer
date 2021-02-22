@@ -1,4 +1,8 @@
 
+// Buffer setup
+var buffers;
+var buffersSetUp = false;
+
 // UI starting values
 var objRotationX = document.getElementById("rotationXSliderAmount").value;
 var objRotationY = document.getElementById("rotationYSliderAmount").value;
@@ -172,6 +176,7 @@ function loadFileFunction() {
 				if (client.status == 200) {
 					generateLoadedShape(client.responseText);
 					loadedShape = true;
+					buffersSetUp = false;
 					main();
 				} else {
 					alert("Could not load file\nView the console log for more details\n\n" + client.responseText);
@@ -352,7 +357,11 @@ function main() {
   };
   
   // Call the routine that builds all the objects we'll be drawing.
-  const buffers = initBuffers(gl);
+  if (!buffersSetUp)
+  {
+	  buffers = initBuffers(gl);
+	  buffersSetUp = true;
+  }
 
   // Draw the scene repeatedly
   var then = 0;
@@ -379,22 +388,16 @@ function initBuffers(gl) {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(objPositionNormals), gl.STATIC_DRAW);
 	
   // Define colors
-  var colors = [];
-  for (var i = 0; i < objFaceIndices.length; i += 3) {
-	  colors = colors.concat(diffuseColor, diffuseColor, diffuseColor);		// Color for each vertex
-  }
+  var colors = SetupVertexColors(objFaceIndices, diffuseColor);
   const colorBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
   
   // Define color wireframe
-  var colorsWireframe = [];
-  for (var i = 0; i < objFaceIndicesWireframe.length; i += 3) {
-	  colorsWireframe = colorsWireframe.concat(frameColor, frameColor, frameColor);		// Color for each wireframe vertex
-  }
+  var colorWireframe = SetupVertexColors(objFaceIndicesWireframe, frameColor);
   const colorWireframeBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, colorWireframeBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colorsWireframe), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colorWireframe), gl.STATIC_DRAW);
 	
   // Define indices
   const indexBuffer = gl.createBuffer();
@@ -414,6 +417,17 @@ function initBuffers(gl) {
 	  indices: indexBuffer,
 	  indicesWireframe: indexWireframeBuffer,
   };
+}
+
+function SetupVertexColors(indexList, color) {
+  var colors = [];
+  for (var i = 0; i < indexList.length; i += 4) {
+	  colors.push(color[0]);
+	  colors.push(color[1]);
+	  colors.push(color[2]);
+	  colors.push(color[3]);
+  }
+  return colors;
 }
 
 

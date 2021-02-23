@@ -98,6 +98,7 @@ function updateTranslationYSlider(slideAmount) {
 /// -- Save/Load and set up OBj files --
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Set up the lists based on the contents of the output file
 function generateLoadedShape(output) {
 	output = output.split('\n');
 	var firstLine = output[0].split(" ");
@@ -105,6 +106,7 @@ function generateLoadedShape(output) {
 	var f = parseInt(firstLine[2]);
 	let shapeInfo =  new WingedEdge(v, f);
 	
+	// Organize file data into winged edge data structure
 	var v_index = 0;
 	var f_index = 0;
 	var ei = 0;
@@ -127,18 +129,16 @@ function generateLoadedShape(output) {
 			ei += 3;
 		}
 	}
+	
+	// Update winged edge object contents
 	shapeInfo.normalizeVertices();
 	shapeInfo.computeFaceNormals();
 	shapeInfo.computeVertexNormals();
 	
+	// Transfer from winged edge to arrays which are used for the WebGL buffers
 	objPositions = [];
 	objPositionNormals = [];
 	objFaceIndices = [];
-	objPositions0 = [];
-	objPositionNormals0 = [];
-	objFaceIndices0 = [];
-	
-	var iter = 0;
 	for (var i = 0; i < shapeInfo.F.length; i++) {
 		var f = shapeInfo.F[i];
 		for (var j = 0; j < f.edges.length; j++) {
@@ -220,6 +220,9 @@ function downloadFileFunction(){
 /// -- Buffers and rendering --
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//
+// The main program to set up and render content
+//
 function main() {
   const canvas = document.querySelector('#glcanvas');
   const gl = canvas.getContext('webgl2');// || canvas.getContext('experimental-webgl');
@@ -330,7 +333,7 @@ function main() {
 	  `;
   }
 
-  // Initialize a shader program; this is where all the lighting for the vertices and so forth is established
+  // Initialize a shader program: this is where all the lighting for the vertices and so forth is established
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
   // Collect all the info needed to use the shader program
@@ -376,6 +379,9 @@ function main() {
 }
 
 
+//
+// Set up the buffer content for each array
+//
 function initBuffers(gl) {
   // Define shape
   const positionBuffer = gl.createBuffer();
@@ -419,6 +425,7 @@ function initBuffers(gl) {
   };
 }
 
+// Helper function for the function above: Sets the color all vertices in indexList to "color"
 function SetupVertexColors(indexList, color) {
   var colors = [];
   for (var i = 0; i < indexList.length; i += 4) {
@@ -431,6 +438,9 @@ function SetupVertexColors(indexList, color) {
 }
 
 
+//
+// Render the objects in controlled by the GUI
+//
 function drawScene(gl, programInfo, buffers, deltaTime) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);

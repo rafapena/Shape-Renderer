@@ -8,7 +8,7 @@ class Edge {
 	  this.destVertex = dest;
 	  this.srcVertex.edges.push(this);
 	  for (var i = 0; i < dest.edges.length; i++) {
-		  if (dest.edges[i].destVertex.index == src.index && this.oppEdge == null) {
+		  if (dest.edges[i].destVertex.index == src.index && this.oppEdge == null) {	// Set the opposite edge
 			  this.oppEdge = dest.edges[i];
 			  dest.edges[i].oppEdge = this;
 			  break;

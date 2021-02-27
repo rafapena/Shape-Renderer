@@ -94,12 +94,15 @@ class Face {
 //
 class WingedEdge {
   
-  constructor(v, f) {
+  constructor() {
 	  this.E = [];
 	  this.V = [];
 	  this.F = [];
 	  this.minVertexVal = Infinity;
 	  this.maxVertexVal = -Infinity;
+  }
+  
+  setupTables(v, f) {
 	  for (var i = 0; i < f * 3; i++) {
 		  this.E.push(new Edge(i));
 	  }
@@ -144,5 +147,9 @@ class WingedEdge {
 		  this.V[i].y = ((this.V[i].y - this.minVertexVal) / range - 0.5) * 2;
 		  this.V[i].z = ((this.V[i].z - this.minVertexVal) / range - 0.5) * 2;
 	  }
+  }
+  
+  decimate(k) {
+	  //
   }
 }

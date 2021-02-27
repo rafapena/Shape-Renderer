@@ -24,7 +24,7 @@ var objPositionNormals;
 var objFaceIndices;
 var objFaceIndicesWireframe;
 var loadedShape = false;
-var shapeInfo;
+var shapeInfo = new WingedEdge();
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +93,16 @@ function updateTranslationYSlider(slideAmount) {
 	objTranslationY = parseFloat(slideAmount);
 }
 
+function decimateKEdges() {
+	k = parseInt(document.getElementById("filenameSave").value);
+	shapeInfo.decimate(k);
+	shapeInfo.computeFaceNormals();
+	shapeInfo.computeVertexNormals();
+	transferWingedEdgeToArrays(shapeInfo);
+	buffersSetUp = false;
+	main();
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// -- Save/Load and set up OBj files --
@@ -104,7 +114,7 @@ function generateLoadedShape(output) {
 	var firstLine = output[0].split(" ");
 	var v = parseInt(firstLine[1]);
 	var f = parseInt(firstLine[2]);
-	let shapeInfo =  new WingedEdge(v, f);
+	shapeInfo.setupTables(v, f);
 	
 	// Organize file data into winged edge data structure
 	var v_index = 0;
@@ -134,36 +144,7 @@ function generateLoadedShape(output) {
 	shapeInfo.normalizeVertices();
 	shapeInfo.computeFaceNormals();
 	shapeInfo.computeVertexNormals();
-	
-	// Transfer from winged edge to arrays which are used for the WebGL buffers
-	objPositions = [];
-	objPositionNormals = [];
-	objFaceIndices = [];
-	for (var i = 0; i < shapeInfo.F.length; i++) {
-		var f = shapeInfo.F[i];
-		for (var j = 0; j < f.edges.length; j++) {
-			objFaceIndices.push(f.edges[j].srcVertex.index);
-		}
-	}
-	var v0 = shapeInfo.V[0];
-	for (var i = 0; i < shapeInfo.V.length; i++) {
-		var v = shapeInfo.V[i];
-		objPositions.push(v.x);
-		objPositions.push(v.y);
-		objPositions.push(v.z);
-		objPositionNormals.push(v.normX);
-		objPositionNormals.push(v.normY);
-		objPositionNormals.push(v.normZ);
-	};
-	objFaceIndicesWireframe = [];
-	for (var i = 0; i < objFaceIndices.length; i += 3) {
-		objFaceIndicesWireframe.push(objFaceIndices[i]);
-		objFaceIndicesWireframe.push(objFaceIndices[i+1]);
-		objFaceIndicesWireframe.push(objFaceIndices[i+1]);
-		objFaceIndicesWireframe.push(objFaceIndices[i+2]);
-		objFaceIndicesWireframe.push(objFaceIndices[i+2]);
-		objFaceIndicesWireframe.push(objFaceIndices[i]);
-	}
+	transferWingedEdgeToArrays(shapeInfo);
 }
 
 //Function demonstrating how to load a sample file from the internet.
@@ -214,6 +195,37 @@ function downloadFileFunction(){
 	downloadFile(document.getElementById("filenameSave").value, fileContent);
 }
 
+// Arrays are used for the WebGL buffers
+function transferWingedEdgeToArrays(wingedEdge) {
+	objPositions = [];
+	objPositionNormals = [];
+	objFaceIndices = [];
+	for (var i = 0; i < wingedEdge.F.length; i++) {
+		var f = wingedEdge.F[i];
+		for (var j = 0; j < f.edges.length; j++) {
+			objFaceIndices.push(f.edges[j].srcVertex.index);
+		}
+	}
+	var v0 = wingedEdge.V[0];
+	for (var i = 0; i < wingedEdge.V.length; i++) {
+		var v = wingedEdge.V[i];
+		objPositions.push(v.x);
+		objPositions.push(v.y);
+		objPositions.push(v.z);
+		objPositionNormals.push(v.normX);
+		objPositionNormals.push(v.normY);
+		objPositionNormals.push(v.normZ);
+	};
+	objFaceIndicesWireframe = [];
+	for (var i = 0; i < objFaceIndices.length; i += 3) {
+		objFaceIndicesWireframe.push(objFaceIndices[i]);
+		objFaceIndicesWireframe.push(objFaceIndices[i+1]);
+		objFaceIndicesWireframe.push(objFaceIndices[i+1]);
+		objFaceIndicesWireframe.push(objFaceIndices[i+2]);
+		objFaceIndicesWireframe.push(objFaceIndices[i+2]);
+		objFaceIndicesWireframe.push(objFaceIndices[i]);
+	}
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -242,8 +254,17 @@ function main() {
 		uniform mat4 uProjectionMatrix, uModelViewMatrix;
 		in vec3 aVertexColor;
 		flat out vec4 vColor;
+		
+		// Irrelevant attributes just used and replaced to suppress warnings
+		in vec4 aVertexNormal;
+		uniform mat4 uNormalMatrix;
+		uniform float Ka, Kd, Ks, sh;
+		uniform vec3 uAmbientColor, uSpecularColor, uLightPosition;
+		
 		void main(void) {
+		  gl_Position = uNormalMatrix * aVertexNormal;
 		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+		  vColor = vec4(Ka*uAmbientColor + Kd*aVertexColor + Ks*sh*uSpecularColor, 1);
 		  vColor = vec4(aVertexColor, 1);
 		}
 	  `;
@@ -362,8 +383,8 @@ function main() {
   // Call the routine that builds all the objects we'll be drawing.
   if (!buffersSetUp)
   {
-	  buffers = initBuffers(gl);
-	  buffersSetUp = true;
+	buffers = initBuffers(gl);
+	buffersSetUp = true;
   }
 
   // Draw the scene repeatedly

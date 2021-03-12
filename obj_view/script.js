@@ -16,7 +16,7 @@ const FLAT_SHADED = 0;
 const SMOOTHLY_SHADED = 1;
 const WIREFRAME = 2;
 const SHADED_WITH_WIREFRAME = 3;
-var displayMode = FLAT_SHADED;
+var displayMode = SHADED_WITH_WIREFRAME;	//FLAT_SHADED;
 
 // Faces and vertices
 var objPositions;
@@ -37,7 +37,7 @@ const diffuseCoefficient = 1.0;
 const specularCoefficient = 1.0;
 const shininess = 128.0;
 const ambientColor = [0.1, 0.1, 0.3];
-const diffuseColor = [0.9, 0.9, 0.5, 1.0];
+const diffuseColor = [0.9, 0.7, 0.4, 1.0];
 const specularColor = [1.0, 1.0, 1.0];
 const lightPosition = [0.0, 0.0, 0.5];
 
@@ -94,10 +94,16 @@ function updateTranslationYSlider(slideAmount) {
 }
 
 function decimateKEdges() {
-	k = parseInt(document.getElementById("filenameSave").value);
+	if (!loadedShape) {
+		alert("Could not decimate:\nA shape must be loaded");
+		return;
+	}
+	k = parseInt(document.getElementById("decimateEdges").value);
+	if (isNaN(k) || k < 1 || k > shapeInfo.V.length) {
+		alert("Could not decimate:\nEntry must be an integer between 1 and " + shapeInfo.V.length);
+		return;
+	}
 	shapeInfo.decimate(k);
-	shapeInfo.computeFaceNormals();
-	shapeInfo.computeVertexNormals();
 	transferWingedEdgeToArrays(shapeInfo);
 	buffersSetUp = false;
 	main();
@@ -110,6 +116,28 @@ function decimateKEdges() {
 
 // Set up the lists based on the contents of the output file
 function generateLoadedShape(output) {
+	output = "# 8 12\n" +
+		"v -1.0 -1.0 1.0\n" +
+		"v 1.0 -1.0 1.0\n" +
+		"v -1.0 1.0 1.0\n" +
+		"v 1.0 1.0 1.0\n" +
+		"v -1.0 -1.0 -1.0\n" +
+		"v 1.0 -1.0 -1.0\n" +
+		"v -1.0 1.0 -1.0\n" +
+		"v 1.0 1.0 -1.0\n" +
+		"f 1 4 3\n" +
+		"f 1 2 4\n" +
+		"f 2 8 4\n" +
+		"f 2 6 8\n" +
+		"f 1 6 5\n" +
+		"f 1 2 6\n" +
+		"f 3 8 7\n" +
+		"f 3 4 8\n" +
+		"f 5 8 7\n" +
+		"f 5 6 8\n" +
+		"f 1 7 3\n" +
+		"f 1 5 7";
+
 	output = output.split('\n');
 	var firstLine = output[0].split(" ");
 	var v = parseInt(firstLine[1]);
@@ -197,16 +225,17 @@ function downloadFileFunction(){
 
 // Arrays are used for the WebGL buffers
 function transferWingedEdgeToArrays(wingedEdge) {
-	objPositions = [];
-	objPositionNormals = [];
 	objFaceIndices = [];
 	for (var i = 0; i < wingedEdge.F.length; i++) {
-		var f = wingedEdge.F[i];
-		for (var j = 0; j < f.edges.length; j++) {
-			objFaceIndices.push(f.edges[j].srcVertex.index);
-		}
+		var start = wingedEdge.F[i].edge;
+		var e = start;
+		do {
+			objFaceIndices.push(e.srcVertex.index);
+			e = e.ccwNext;
+		} while (e.index != start.index)
 	}
-	var v0 = wingedEdge.V[0];
+	objPositions = [];
+	objPositionNormals = [];
 	for (var i = 0; i < wingedEdge.V.length; i++) {
 		var v = wingedEdge.V[i];
 		objPositions.push(v.x);

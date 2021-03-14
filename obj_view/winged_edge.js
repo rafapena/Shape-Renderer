@@ -49,13 +49,11 @@ class Vertex {
 	  this.normZ = 0;
 	  var start = this.edges[0];
 	  var e = start;
-	  
 	  var iter = 0;
 	  var str = "";
 	  do {
-		  str += e.index + " ";
-		  if (iter++ > 30) alert("VERTEX v-" + this.edges.length + " INFINITE LOOP: " + str);
-		  
+		  str += getEdge(e);
+		  if (iter++ > this.edges.length*2) alert("VERTEX v-" + this.edges.length + " INFINITE LOOP\n" + str);
 		  this.normX += e.face.normX;
 		  this.normY += e.face.normY;
 		  this.normZ += e.face.normZ;
@@ -79,18 +77,26 @@ class Face {
 	  this.normZ = 0;
 	  var start = this.edge;
 	  var e = start;
-	  
 	  var iter = 0;
 	  var str = "";
 	  do {
-		  str += e.index + " ";
-		  if (iter++ > 30) alert("FACE INFINITE LOOP: " + str);
-		  
+		  str += getEdge(e);
+		  if (iter++ > 6) alert("FACE INFINITE LOOP\n" + str);
 		  this.normX += (e.srcVertex.y - e.destVertex.y) * (e.srcVertex.z + e.destVertex.z);
 		  this.normY += (e.srcVertex.z - e.destVertex.z) * (e.srcVertex.x + e.destVertex.x);
 		  this.normZ += (e.srcVertex.x - e.destVertex.x) * (e.srcVertex.y + e.destVertex.y);
 		  e = e.ccwNext;
 	  } while (e.index != start.index);
+  }
+  getInfo() {
+	  var str = "FACE " + this.index + ":  ( ";
+	  var start = this.edge;
+	  var e = start;
+	  do {
+		  str += e.srcVertex.index + " ";
+		  e = e.ccwNext;
+	  } while (e.index != start.index);
+	  return str + ")\n";
   }
 }
 
@@ -167,12 +173,15 @@ class WingedEdge {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   decimate(k) {
-	  this.computeFaceNormals();
-	  this.computeVertexNormals();
-	  for (var i = 0; i < k; i++) {
+	  var target = this.V.length - k;
+	  if (target < 3) {
+		  this.E = [];
+		  this.V = [];
+		  this.F = [];
+		  return;
+	  }
+	  while (this.V.length > target) {
 		  this.decimateOne();
-		  this.computeFaceNormals();
-		  this.computeVertexNormals();
 	  }
   }
   
@@ -181,72 +190,89 @@ class WingedEdge {
 	  var res = this.computeSimplification();
 	  var minE = this.E[res[0]];
 	  var destV = this.V[minE.destVertex.index];
-	  var E0, E1;
 	  
-	  // Set up edge linking data
-	  // Get rid of valence 3 vertices connecting to both the to-be-deleted vertex and destV
-	  var str0 = "";
-	  var str1 = "";
+	  // Simply get rid of the vertex if it's valence 3
+	  if (minE.srcVertex.edges.length == 3) {
+		  this.destroyValence3Vertex(minE.srcVertex);
+		  this.updateAllKeys();
+		  this.recomputeNormals(destV);
+		  return;
+	  }
+	  
+	  // Group up the edges surrounding the to-be-deleted vertex in CCW order, starting at minE
+	  var eList = [];
+	  var start = minE;
+	  var e = start;
 	  do {
-		  E0 = this.E[minE.oppEdge.ccwPrev.index];
-		  var dv = this.destroyValence3Vertex(E0.srcVertex.index);
-		  //if (str0.length > 0) alert("VALENCE-3 VERTEX REMOVED (CW): " + str0 + " " + E0.index);
-		  //str0 += E0.index;
-	  } while (dv);
-	  do {
-		  E1 = this.E[minE.ccwNext.index];
-		  var dv = this.destroyValence3Vertex(E1.destVertex.index);
-		  //if (str1.length > 0) alert("VALENCE-3 VERTEX REMOVED (CCW): " + str1 + " " + E1.index);
-		  //str1 += E1.index;
-	  } while (dv);
+		  // Just delete the valence-3 vertex instead
+		  if (this.destroyValence3Vertex(e.destVertex)) {
+			  this.updateAllKeys();
+			  return;
+		  }
+		  eList.push(e);
+		  e = e.ccwPrev.oppEdge;
+	  } while (e.index != start.index);
 	  
-	  // Declare the new previous and next edges for both E0 and E1
-	  var prevE0 = this.E[minE.oppEdge.ccwNext.oppEdge.ccwPrev.index];
-	  var nextE0 = this.E[minE.oppEdge.ccwNext.oppEdge.ccwNext.index];
-	  var prevE1 = this.E[minE.ccwPrev.oppEdge.ccwPrev.index];
-	  var nextE1 = this.E[minE.ccwPrev.oppEdge.ccwNext.index];
+	  // Do not decimate if destV is linked to a vertex that was previously linked to the to-be-removed vertex
+	  for (var i = 2; i < eList.length-1; i++) {
+		  if (this.findEdgeIdx(eList[i].destVertex, destV) >= 0) return;
+	  }
 	  
-	  // Update destVertex's previous edge
-	  nextE0.srcVertex = destV;
-	  nextE0.oppEdge.destVertex = destV;
-	  destV.edges.push(nextE0);
-	  E0.setFace(nextE0.face);
-	  E0.setCCWEdges(prevE0, nextE0);
-	  prevE0.ccwNext = E0;
-	  nextE0.ccwPrev = E0;
+	  // Remove edges from the 3 vertices next to the to-be-removed vertex and edge minE
+	  var v1 = eList[1].destVertex;
+	  var v0 = eList[eList.length - 1].destVertex;
+	  v0.edges.splice(this.findEdgeIdx(v0, minE.srcVertex), 1);
+	  destV.edges.splice(this.findEdgeIdx(destV, minE.srcVertex), 1);
+	  v1.edges.splice(this.findEdgeIdx(v1, minE.srcVertex), 1);
 	  
-	  // Update destVertex's next edge
-	  prevE1.destVertex = destV;
-	  prevE1.oppEdge.srcVertex = destV;
-	  destV.edges.push(prevE1.oppEdge);
-	  E1.setFace(prevE1.face);
-	  E1.setCCWEdges(prevE1, nextE1);
-	  prevE1.ccwNext = E1;
-	  nextE1.ccwPrev = E1;
+	  // Mark for deletion (Note: minE == eList[0])
+	  eList[0].active = false;
+	  eList[0].oppEdge.active = false;
+	  eList[1].active = false;
+	  eList[1].oppEdge.active = false;
+	  eList[eList.length-1].active = false;
+	  eList[eList.length-1].oppEdge.active = false;
+	  minE.face.active = false;
+	  minE.oppEdge.face.active = false;
+	  minE.srcVertex.active = false;
 	  
-	  // Setup deletion for to-be-removed faces, vertices, and edges
-	  this.E[minE.index].active = false;
-	  this.E[minE.oppEdge.index].active = false;
-	  this.E[minE.ccwPrev.index].active = false;
-	  this.E[minE.ccwPrev.oppEdge.index].active = false;
-	  this.E[minE.oppEdge.ccwNext.index].active = false;
-	  this.E[minE.oppEdge.ccwNext.oppEdge.index].active = false;
-	  this.F[minE.face.index].active = false;
-	  this.F[minE.oppEdge.face.index].active = false;
-	  this.V[minE.srcVertex.index].active = false;
-	  this.unlinkDeletedEdges([E0.srcVertex, destV, E1.destVertex]);
+	  // Link new next edge for destV
+	  var E1 = minE.ccwNext;
+	  var pE1 = eList[2].oppEdge;
+	  var nE1 = eList[2].oppEdge.ccwPrev;
+	  E1.setFace(pE1.face);
+	  pE1.ccwNext = E1;
+	  nE1.ccwPrev = E1;
+	  E1.ccwNext = nE1;
+	  E1.ccwPrev = pE1;
 	  
-	  // Update list keys
-	  this.updateFaceListKeys();
-	  this.updateEdgeListKeys(destV);
-	  this.updateVertexListKeys();
+	  // Link new previous edge for destV
+	  var E0 = minE.oppEdge.ccwPrev;
+	  var pE0 = eList[eList.length-2].ccwNext;
+	  var nE0 = eList[eList.length-2];
+	  E0.setFace(nE0.face);
+	  pE0.ccwNext = E0;
+	  nE0.ccwPrev = E0;
+	  E0.ccwNext = nE0;
+	  E0.ccwPrev = pE0;
 	  
-	  // Set destination vertex to the location between the deleted source vertex and itself
+	  // Relink the vertex of each edge
+	  for (var i = 2; i < eList.length-1; i++) {
+		  var e = eList[i].oppEdge;
+		  e.destVertex = destV;
+		  e.oppEdge.srcVertex = destV;
+		  destV.edges.push(e.oppEdge);
+	  }
+	  
+	  // Update list keys then set destination vertex to the location between the deleted source vertex and itself
+	  this.updateAllKeys();
 	  var v1 = res[1];
 	  destV.x = v1.x;
 	  destV.y = v1.y;
 	  destV.z = v1.z;
+	  this.recomputeNormals(destV);
   }
+  
   
   // Use multiple choice to choose vertex and edge to remove
   computeSimplification() {
@@ -325,121 +351,89 @@ class WingedEdge {
 	  return x*vtQ[0] + y*vtQ[1] + z*vtQ[2] + vtQ[3];
   }
   
-  destroyValence3Vertex(vIdx) {
-	  var v = this.V[vIdx];
+  // Remove the vertex and its 3 edges
+  destroyValence3Vertex(v) {
 	  if (v.edges.length != 3) return false;
-	  
-	  // Set up deletion for the center edge and its 3 vertices
-	  var e = [];
-	  this.V[vIdx].active = false;
-	  for (var i = 0; i < 3; i++) {
-		  e.push(this.E[v.edges[i].ccwNext.index]);
-		  this.E[v.edges[i].index].active = false;
-		  this.E[v.edges[i].oppEdge.index].active = false;
-		  if (i > 0) this.F[e[i].face.index].active = false;
-	  }
-	  
-	  // Attach edges
-	  var t = [2, 0, 1, 2, 0];
-	  for (var i = 0; i < 3; i++) {
-		  this.E[e[i].index].linkVertices(e[i].srcVertex, e[t[i+2]].srcVertex);
-		  this.E[e[i].index].setFace(e[0].face);
-		  this.E[e[i].index].setCCWEdges(e[t[i]], e[t[i+2]]);
-	  }
-	  var de = [ this.V[e[0].srcVertex.index], this.V[e[1].srcVertex.index], this.V[e[2].srcVertex.index] ];
-	  this.unlinkDeletedEdges(de);
+	  var eSaved = [];
+	  v.active = false;
+	  var start = v.edges[0];
+	  var e = start;
+	  do {
+		  eSaved.push(e.ccwNext);
+		  var destV = e.destVertex;
+		  destV.edges.splice(this.findEdgeIdx(destV, v), 1);	// Unlink from the edges between v and the surrounding vertices
+		  if (e.index != start.index) e.face.active = false;	// Do not delete the 1st face: remaining edges must link to a face
+		  e.active = false;
+		  e.oppEdge.active = false;
+		  e = e.ccwPrev.oppEdge;
+	  } while (e.index != start.index);
+	  this.uniteEdges(eSaved[0], eSaved[1], eSaved[2], v.edges[0].face);
 	  return true;
   }
-  
-  unlinkDeletedEdges(vertexList) {
-	  for (var i = 0; i < vertexList.length; i++) {
-		  for (var j = 0; j < vertexList[i].edges.length; j++) {
-			  if (vertexList[i].edges[j].active) continue;
-			  vertexList[i].edges.splice(j, 1);
-			  break;
-		  }
+
+  // Get the entry i from v1's edges
+  findEdgeIdx(v1, v2) {
+	  for (var i = 0; i < v1.edges.length; i++) {
+		  var e = v1.edges[i];
+		  if (e.active && e.destVertex.index == v2.index) return i;
+	  }
+	  return -1;
+  }
+
+  // Note: function will not link srcVertex and destVertex - must be done manually
+  uniteEdges(e1, e2, e3, f) {
+	  var eList = [e1, e2, e3];
+	  var t = [2, 0, 1, 2, 0];
+	  for (var i = 0; i < 3; i++) {
+		  var pEdge = eList[t[i]];
+		  var edge = eList[t[i+1]];
+		  var nEdge = eList[t[i+2]];
+		  edge.setCCWEdges(pEdge, nEdge);
+		  edge.setFace(f);
 	  }
   }
 
-  updateFaceListKeys() {
+  updateAllKeys() {
 	  for (var i = 0; i < this.F.length; i++) {
-		  if (!this.F[i].active) {
-			  delete this.F[i];
-			  this.F.splice(i--, 1);
-		  } else {
-			  this.F[i].index = i;
-		  }
+		  this.F[i].index = i;
+		  if (this.F[i].active) continue;
+		  delete this.F[i];
+		  this.F.splice(i--, 1);
 	  }
-  }
-  
-  updateEdgeListKeys(targetV) {
 	  for (var i = 0; i < this.E.length; i++) {
-		  if (!this.E[i].active) {
-			  delete this.E[i];
-			  this.E.splice(i--, 1);
-		  } else {
-			  this.E[i].index = i;
-			  if (!targetV) continue;
-			  // Relink dangling edges to the target vertex targetV
-			  if (!this.E[i].srcVertex.active) {
-				  this.E[i].srcVertex = targetV;
-				  targetV.edges.push(this.E[i]);
-			  }
-			  if (!this.E[i].destVertex.active) {
-				  this.E[i].destVertex = targetV;
-			  }
-		  }
+		  this.E[i].index = i;
+		  if (this.E[i].active) continue;
+		  delete this.E[i];
+		  this.E.splice(i--, 1);
 	  }
-  }
-  
-  updateVertexListKeys() {
 	  for (var i = 0; i < this.V.length; i++) {
-		  if (!this.V[i].active) {
-			  delete this.V[i];
-			  this.V.splice(i--, 1);
-		  } else {
-			  this.V[i].index = i;
+		  this.V[i].index = i;
+		  if (this.V[i].active) continue;
+		  delete this.V[i];
+		  this.V.splice(i--, 1);
+	  }
+  }
+  
+  recomputeNormals(v) {
+	  for (var i = 0; i < v.edges.length; i++) v.edges[i].face.computeNormal();
+	  v.computeNormal();
+  }
+  
+  // DEBUG
+  displayEntireMesh(message) {
+	  var str = message + "\n";
+	  for (var i = 0; i < this.V.length; i++) {
+		  str += this.V[i].index + " ==> ";
+		  for (var j = 0; j < this.V[i].edges.length; j++) {
+			  str += this.V[i].edges[j].destVertex.index + ", ";
 		  }
-	  }
-  }
-  
-  
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  /// -- DEBUG --
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  
-  printEdges(pe, ce, ne) {
-	  var str = "Base: " + ce.index + " --> " + ne.index + " --> " + pe.index + "\n";
-	  var start = ce;
-	  var e = start;
-	  do {
-		  str += e.index + " ";
-		  e = e.ccwNext;
-	  } while (e.index != start.index);
-	  str += "\n";
-	  var e = start;
-	  do {
-		  str += e.index + " ";
-		  e = e.ccwPrev;
-	  } while (e.index != start.index);
-	  alert(str);
-  }
-  
-  printVertexEdges(sv, v, dv, sre, re, dre) {
-	  var str = "";
-	  if (sre) str = "Predicted removal: " + sre.index + " " + re.index + " " + dre.index;
-	  str += "\nPList: ";
-	  for (var i = 0; i < sv.edges.length; i++) {
-		  str += sv.edges[i].index + " ";
-	  }
-	  str += "\nCList: ";
-	  for (var i = 0; i < v.edges.length; i++) {
-		  str += v.edges[i].index + " ";
-	  }
-	  str += "\nNList: ";
-	  for (var i = 0; i < dv.edges.length; i++) {
-		  str += dv.edges[i].index + " ";
+		  str += "\n";
 	  }
 	  alert(str);
   }
+}
+
+// DEBUG
+function getEdge(e) {
+	return "(" + e.srcVertex.index + " " + e.destVertex.index + ") ";
 }

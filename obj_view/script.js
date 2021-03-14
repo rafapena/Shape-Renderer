@@ -39,7 +39,7 @@ const shininess = 128.0;
 const ambientColor = [0.1, 0.1, 0.3];
 const diffuseColor = [0.9, 0.7, 0.4, 1.0];
 const specularColor = [1.0, 1.0, 1.0];
-const lightPosition = [0.0, 0.0, 0.5];
+const lightPosition = [0.0, 0.0, 0.25];
 
 // Wireframe settings
 const frameColor = [0.8, 0.0, 0.0, 1.0];
@@ -99,8 +99,8 @@ function decimateKEdges() {
 		return;
 	}
 	k = parseInt(document.getElementById("decimateEdges").value);
-	if (isNaN(k) || k < 1 || k > shapeInfo.V.length) {
-		alert("Could not decimate:\nEntry must be an integer between 1 and " + shapeInfo.V.length);
+	if (isNaN(k) || k < 1) {
+		alert("Could not decimate:\nEntry must be a positive integer");
 		return;
 	}
 	shapeInfo.decimate(k);
@@ -116,27 +116,27 @@ function decimateKEdges() {
 
 // Set up the lists based on the contents of the output file
 function generateLoadedShape(output) {
-	output = "# 8 12\n" +
-		"v -1.0 -1.0 1.0\n" +
-		"v 1.0 -1.0 1.0\n" +
-		"v -1.0 1.0 1.0\n" +
-		"v 1.0 1.0 1.0\n" +
-		"v -1.0 -1.0 -1.0\n" +
+	/*output = "# 8 12\n" +
 		"v 1.0 -1.0 -1.0\n" +
-		"v -1.0 1.0 -1.0\n" +
+		"v 1.0 -1.0 1.0\n" +
+		"v -1.0 -1.0 1.0\n" +
+		"v -1.0 -1.0 -1.0\n" +
 		"v 1.0 1.0 -1.0\n" +
-		"f 1 4 3\n" +
+		"v 1.0 1.0 1.0\n" +
+		"v -1.0 1.0 1.0\n" +
+		"v -1.0 1.0 -1.0\n" +
+		"f 2 3 4\n" +
+		"f 8 7 6\n" +
+		"f 5 6 2\n" +
+		"f 6 7 3\n" +
+		"f 3 7 8\n" +
+		"f 1 4 8\n" +
 		"f 1 2 4\n" +
-		"f 2 8 4\n" +
-		"f 2 6 8\n" +
-		"f 1 6 5\n" +
-		"f 1 2 6\n" +
-		"f 3 8 7\n" +
-		"f 3 4 8\n" +
-		"f 5 8 7\n" +
-		"f 5 6 8\n" +
-		"f 1 7 3\n" +
-		"f 1 5 7";
+		"f 5 8 6\n" +
+		"f 1 5 2\n" +
+		"f 2 6 3\n" +
+		"f 4 3 8\n" +
+		"f 5 1 8";*/
 
 	output = output.split('\n');
 	var firstLine = output[0].split(" ");
@@ -225,6 +225,8 @@ function downloadFileFunction(){
 
 // Arrays are used for the WebGL buffers
 function transferWingedEdgeToArrays(wingedEdge) {
+	document.getElementById('numberOfPolygons').innerHTML = wingedEdge.F.length;
+	document.getElementById('numberOfVertices').innerHTML = wingedEdge.V.length;
 	objFaceIndices = [];
 	for (var i = 0; i < wingedEdge.F.length; i++) {
 		var start = wingedEdge.F[i].edge;
